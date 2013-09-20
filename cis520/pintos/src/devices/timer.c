@@ -20,6 +20,9 @@
 /* Number of timer ticks since OS booted. */
 static int64_t ticks;
 
+/* list of sleeping threads */
+static struct list sleeping_threads;
+
 /* Number of loops per timer tick.
    Initialized by timer_calibrate(). */
 static unsigned loops_per_tick;
@@ -35,6 +38,7 @@ static void real_time_delay (int64_t num, int32_t denom);
 void
 timer_init (void) 
 {
+  list_init (&sleeping_threads);
   pit_configure_channel (0, 2, TIMER_FREQ);
   intr_register_ext (0x20, timer_interrupt, "8254 Timer");
 }
@@ -89,11 +93,17 @@ timer_elapsed (int64_t then)
 void
 timer_sleep (int64_t ticks) 
 {
+  struct thread *t = thread_current();
+  
   int64_t start = timer_ticks ();
+  t->wake = start + ticks;
 
   ASSERT (intr_get_level () == INTR_ON);
-  while (timer_elapsed (start) < ticks) 
-    thread_yield ();
+
+  if( timer_elapsed(start) < ticks )
+        list_insert_ordered(&sleeping_threads, &(t->elem), compare_thread_wait, NULL);
+  	thread_yield ();
+	sema_down(&(t->s));
 }
 
 /* Sleeps for approximately MS milliseconds.  Interrupts must be
@@ -172,6 +182,10 @@ timer_interrupt (struct intr_frame *args UNUSED)
 {
   ticks++;
   thread_tick ();
+  while(list_entry(list_begin(&sleeping_threads), struct thread, elem)->wake <= timer_ticks())
+  {
+     sema_up(&(list_entry(list_pop_front(&sleeping_threads), struct thread, elem)->s));
+  }
 }
 
 /* Returns true if LOOPS iterations waits for more than one timer
@@ -244,3 +258,11 @@ real_time_delay (int64_t num, int32_t denom)
   ASSERT (denom % 1000 == 0);
   busy_wait (loops_per_tick * num / 1000 * TIMER_FREQ / (denom / 1000)); 
 }
+
+
+/* Thread wait compare */
+bool compare_thread_wait(const struct list_elem *t1, const struct list_elem *t2, void* aux UNUSED)
+{
+  return (ENTRY_TO_THREAD(t1)->wake > ENTRY_TO_THREAD(t2)->wake);
+}
+

@@ -1,8 +1,11 @@
 #ifndef DEVICES_TIMER_H
 #define DEVICES_TIMER_H
 
+#include <list.h>
 #include <round.h>
 #include <stdint.h>
+
+#define ENTRY_TO_THREAD(entry) (list_entry( entry, struct thread, elem ))
 
 /* Number of timer interrupts per second. */
 #define TIMER_FREQ 100
@@ -25,5 +28,8 @@ void timer_udelay (int64_t microseconds);
 void timer_ndelay (int64_t nanoseconds);
 
 void timer_print_stats (void);
+
+/* Thread wait compare */
+bool compare_thread_wait(const struct list_elem *t1, const struct list_elem *t2, void* aux);
 
 #endif /* devices/timer.h */
