@@ -92,6 +92,7 @@ struct thread
     struct list_elem allelem;           /* List element for all threads list. */
     struct semaphore s;                 /* Semaphore variable                 */
     int64_t wake;			/* Wake up time in ticks	      */
+    struct list_elem alarm_elem;        /* List element for the alarm         */
 
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element.                      */

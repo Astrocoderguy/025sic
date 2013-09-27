@@ -5,7 +5,7 @@
 #include <round.h>
 #include <stdint.h>
 
-#define ENTRY_TO_THREAD(entry) (list_entry( entry, struct thread, elem ))
+#define ENTRY_TO_THREAD(entry) (list_entry( entry, struct thread, alarm_elem ))
 
 /* Number of timer interrupts per second. */
 #define TIMER_FREQ 100

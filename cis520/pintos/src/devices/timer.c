@@ -100,10 +100,27 @@ timer_sleep (int64_t ticks)
 
   ASSERT (intr_get_level () == INTR_ON);
 
-  if( timer_elapsed(start) < ticks )
-        list_insert_ordered(&sleeping_threads, &(t->elem), compare_thread_wait, NULL);
-  	thread_yield ();
-	sema_down(&(t->s));
+  //if( timer_elapsed(start) < ticks )
+  {         
+    // list_push_back(&sleeping_threads, &(t->alarm_elem));
+    intr_disable();
+    //printf("Wake = %d, TID = %d, Name = %s\n", t->wake, t->tid, thread_name());
+    if(list_empty(&sleeping_threads)) list_push_front (&sleeping_threads, &(t->alarm_elem));
+    else list_insert_ordered(&sleeping_threads, &(t->alarm_elem), compare_thread_wait, NULL);
+
+    
+
+    struct list_elem *e;
+    for (e = list_begin (&sleeping_threads); e != list_end (&sleeping_threads); e = list_next (e))
+    {
+      printf("%d\n", list_entry(e, struct thread, alarm_elem)->wake);
+    }
+    printf("End Loop##############################################3\n");
+
+    intr_enable();
+    //thread_yield ();
+    sema_down(&(t->s));
+  }
 }
 
 /* Sleeps for approximately MS milliseconds.  Interrupts must be
@@ -182,9 +199,15 @@ timer_interrupt (struct intr_frame *args UNUSED)
 {
   ticks++;
   thread_tick ();
-  while(list_entry(list_begin(&sleeping_threads), struct thread, elem)->wake <= timer_ticks())
+  struct thread *t;
+  if( !list_empty (&sleeping_threads))
   {
-     sema_up(&(list_entry(list_pop_front(&sleeping_threads), struct thread, elem)->s));
+    while( ENTRY_TO_THREAD(list_begin(&sleeping_threads))->wake <= ticks )
+    {
+       t = ENTRY_TO_THREAD(list_pop_front(&sleeping_threads));
+       sema_up( &t->s );
+       intr_yield_on_return();
+    }
   }
 }
 
@@ -263,6 +286,6 @@ real_time_delay (int64_t num, int32_t denom)
 /* Thread wait compare */
 bool compare_thread_wait(const struct list_elem *t1, const struct list_elem *t2, void* aux UNUSED)
 {
-  return (ENTRY_TO_THREAD(t1)->wake > ENTRY_TO_THREAD(t2)->wake);
+  return (ENTRY_TO_THREAD(t1)->wake < ENTRY_TO_THREAD(t2)->wake);
 }
 
