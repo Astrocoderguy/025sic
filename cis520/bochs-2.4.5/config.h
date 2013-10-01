@@ -52,7 +52,7 @@
 // adds support for the GNU readline library in the debugger command
 // prompt.
 #define HAVE_LIBREADLINE 0
-#define HAVE_READLINE_HISTORY_H 1
+#define HAVE_READLINE_HISTORY_H 0
 
 // Define to 1 if you have <locale.h>
 #define HAVE_LOCALE_H 0
@@ -128,7 +128,7 @@
 #endif
 #define BX_HAVE_MKSTEMP 1
 #define BX_HAVE_SYS_MMAN_H 1
-#define BX_HAVE_XPM_H 0
+#define BX_HAVE_XPM_H 1
 #define BX_HAVE_TIMELOCAL 1
 #define BX_HAVE_GMTIME 1
 #define BX_HAVE_MKTIME 1
