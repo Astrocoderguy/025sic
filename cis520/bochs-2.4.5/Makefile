@@ -19,7 +19,7 @@
 # the following rules:
 #   use $(VAR) not ${VAR}
 
-prefix          = /home/l/ljwagner/cis520/usr/local/
+prefix          = /home/matt/Documents/OpSystems/cis520/usr/local
 exec_prefix     = ${prefix}
 srcdir          = .
 
@@ -95,7 +95,7 @@ LIBS =  -lm
 #   solaris needs -lreadline -lcurses
 X_LIBS = 
 X_PRE_LIBS =  -lSM -lICE
-XPM_LIB = 
+XPM_LIB = -lXpm
 GUI_LINK_OPTS_X = $(X_LIBS) $(X_PRE_LIBS) -lX11 $(XPM_LIB)
 GUI_LINK_OPTS_SDL = `sdl-config --cflags --libs`
 GUI_LINK_OPTS_SVGA =  -lvga -lvgagl

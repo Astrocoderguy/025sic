@@ -1,7 +1,7 @@
 #!/bin/sh
-BOCHS=/home/l/ljwagner/cis520/usr/local//bin/bochs
-DLXINST=/home/l/ljwagner/cis520/usr/local//share/bochs/dlxlinux
-GZIP=/bin/gzip
+BOCHS=/home/matt/Documents/OpSystems/cis520/usr/local/bin/bochs
+DLXINST=/home/matt/Documents/OpSystems/cis520/usr/local/share/bochs/dlxlinux
+GZIP=/usr/bin/gzip
 if [ ! -z $1 ]; then
   DLXPATH=$1
 else
