@@ -33,6 +33,9 @@ static void busy_wait (int64_t loops);
 static void real_time_sleep (int64_t num, int32_t denom);
 static void real_time_delay (int64_t num, int32_t denom);
 
+/* Thread wait compare */
+static bool compare_thread_wait(const struct list_elem *t1, const struct list_elem *t2, void* aux);
+
 /* Sets up the timer to interrupt TIMER_FREQ times per second,
    and registers the corresponding interrupt. */
 void
@@ -100,27 +103,13 @@ timer_sleep (int64_t ticks)
 
   ASSERT (intr_get_level () == INTR_ON);
 
-  //if( timer_elapsed(start) < ticks )
-  {         
-    // list_push_back(&sleeping_threads, &(t->alarm_elem));
-    intr_disable();
-    //printf("Wake = %d, TID = %d, Name = %s\n", t->wake, t->tid, thread_name());
-    if(list_empty(&sleeping_threads)) list_push_front (&sleeping_threads, &(t->alarm_elem));
-    else list_insert_ordered(&sleeping_threads, &(t->alarm_elem), compare_thread_wait, NULL);
+  intr_disable();
 
-    
+  list_insert_ordered( &sleeping_threads, &(t->alarm_elem), compare_thread_wait, NULL );
 
-    struct list_elem *e;
-    for (e = list_begin (&sleeping_threads); e != list_end (&sleeping_threads); e = list_next (e))
-    {
-      printf("%d\n", list_entry(e, struct thread, alarm_elem)->wake);
-    }
-    printf("End Loop##############################################3\n");
-
-    intr_enable();
-    //thread_yield ();
-    sema_down(&(t->s));
-  }
+  intr_enable();
+  sema_down(&(t->s));
+  
 }
 
 /* Sleeps for approximately MS milliseconds.  Interrupts must be
@@ -202,12 +191,14 @@ timer_interrupt (struct intr_frame *args UNUSED)
   struct thread *t;
   if( !list_empty (&sleeping_threads))
   {
-    while( ENTRY_TO_THREAD(list_begin(&sleeping_threads))->wake <= ticks )
+    t = list_entry(list_begin(&sleeping_threads), struct thread, alarm_elem);
+    if( t->wake <= timer_ticks() )
     {
-       t = ENTRY_TO_THREAD(list_pop_front(&sleeping_threads));
-       sema_up( &t->s );
+      list_pop_front(&sleeping_threads);
+       sema_up( &(t->s) );
        intr_yield_on_return();
     }
+
   }
 }
 
@@ -284,8 +275,11 @@ real_time_delay (int64_t num, int32_t denom)
 
 
 /* Thread wait compare */
-bool compare_thread_wait(const struct list_elem *t1, const struct list_elem *t2, void* aux UNUSED)
+static bool compare_thread_wait(const struct list_elem *t1, const struct list_elem *t2, void* aux UNUSED)
 {
-  return (ENTRY_TO_THREAD(t1)->wake < ENTRY_TO_THREAD(t2)->wake);
+  const struct thread *a = list_entry (t1, struct thread, alarm_elem);
+  const struct thread *b = list_entry (t2, struct thread, alarm_elem);
+  
+  return (a->wake < b->wake);
 }
 
