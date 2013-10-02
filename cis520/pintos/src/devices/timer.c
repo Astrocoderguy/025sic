@@ -192,11 +192,14 @@ timer_interrupt (struct intr_frame *args UNUSED)
   if( !list_empty (&sleeping_threads))
   {
     t = list_entry(list_begin(&sleeping_threads), struct thread, alarm_elem);
-    if( t->wake <= timer_ticks() )
+    while( t->wake <= timer_ticks() )
     {
       list_pop_front(&sleeping_threads);
-       sema_up( &(t->s) );
-       intr_yield_on_return();
+      sema_up( &(t->s) );
+      intr_yield_on_return();
+      if(list_empty (&sleeping_threads)) break;
+      
+      t = list_entry(list_begin(&sleeping_threads), struct thread, alarm_elem);
     }
 
   }
