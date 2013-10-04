@@ -114,10 +114,14 @@ sema_up (struct semaphore *sema)
 
   old_level = intr_disable ();
   if (!list_empty (&sema->waiters)) 
-    thread_unblock (list_entry (list_pop_front (&sema->waiters),
-                                struct thread, elem));
-  sema->value++;
+  {
+	struct list_elem *max = list_max (&sema->waiters, thread_lower_priority, NULL);
+	list_remove( max );
+    	thread_unblock (list_entry (max, struct thread, elem));
+  }
+	sema->value++;
   intr_set_level (old_level);
+  thread_yield_to_higher_priority();
 }
 
 static void sema_test_helper (void *sema_);
@@ -317,8 +321,12 @@ cond_signal (struct condition *cond, struct lock *lock UNUSED)
   ASSERT (lock_held_by_current_thread (lock));
 
   if (!list_empty (&cond->waiters)) 
-    sema_up (&list_entry (list_pop_front (&cond->waiters),
-                          struct semaphore_elem, elem)->semaphore);
+  {
+    struct list_elem *max = list_max (&cond->waiters, sema_elem_lower_priority, NULL);
+    list_remove( max );
+    sema_up (&list_entry (max, struct semaphore_elem, elem)->semaphore);
+    thread_yield_to_higher_priority();
+  }
 }
 
 /* Wakes up all threads, if any, waiting on COND (protected by
@@ -335,4 +343,23 @@ cond_broadcast (struct condition *cond, struct lock *lock)
 
   while (!list_empty (&cond->waiters))
     cond_signal (cond, lock);
+}
+
+bool thread_lower_priority(const struct list_elem *a_, const struct list_elem *b_, void *aux UNUSED)
+{
+  const struct thread *a = list_entry(a_, struct thread, elem);
+  const struct thread *b = list_entry(b_, struct thread, elem);
+
+  return a->priority < b->priority;
+}
+
+bool sema_elem_lower_priority(const struct list_elem *a_, const struct list_elem *b_, void *aux UNUSED)
+{
+  const struct semaphore_elem *a = list_entry(a_, struct semaphore_elem, elem);
+  const struct semaphore_elem *b = list_entry(b_, struct semaphore_elem, elem);
+
+  struct list_elem *maxa = list_max (&a->semaphore.waiters, thread_lower_priority, NULL);
+  struct list_elem *maxb = list_max (&b->semaphore.waiters, thread_lower_priority, NULL);
+
+  return ( (list_entry( maxa, struct thread, elem )->priority ) < (list_entry( maxb, struct thread, elem )->priority ) );
 }

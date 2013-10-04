@@ -208,6 +208,7 @@ thread_create (const char *name, int priority,
 
   /* Add to run queue. */
   thread_unblock (t);
+  thread_yield_to_higher_priority();
 
   return tid;
 }
@@ -245,7 +246,8 @@ thread_unblock (struct thread *t)
 
   old_level = intr_disable ();
   ASSERT (t->status == THREAD_BLOCKED);
-  list_push_back (&ready_list, &t->elem);
+  //list_push_back (&ready_list, &t->elem);
+  list_insert_ordered( &ready_list, &(t->elem), thread_higher_priority, NULL );
   t->status = THREAD_READY;
   intr_set_level (old_level);
 }
@@ -316,7 +318,10 @@ thread_yield (void)
 
   old_level = intr_disable ();
   if (cur != idle_thread) 
-    list_push_back (&ready_list, &cur->elem);
+  {
+    //list_push_back (&ready_list, &cur->elem);
+    list_insert_ordered( &ready_list, &(cur->elem), thread_higher_priority, NULL );
+  }
   cur->status = THREAD_READY;
   schedule ();
   intr_set_level (old_level);
@@ -343,7 +348,10 @@ thread_foreach (thread_action_func *func, void *aux)
 void
 thread_set_priority (int new_priority) 
 {
+//HERE
   thread_current ()->priority = new_priority;
+  list_sort ( &ready_list, thread_lower_priority, NULL );
+  thread_yield_to_higher_priority();
 }
 
 /* Returns the current thread's priority. */
@@ -586,3 +594,37 @@ allocate_tid (void)
 /* Offset of `stack' member within `struct thread'.
    Used by switch.S, which can't figure it out on its own. */
 uint32_t thread_stack_ofs = offsetof (struct thread, stack);
+
+
+bool thread_higher_priority(const struct list_elem *a_, const struct list_elem *b_, void *aus UNUSED)
+{
+  const struct thread *a = list_entry(a_, struct thread, elem);
+  const struct thread *b = list_entry(b_, struct thread, elem);
+
+  return a->priority > b->priority;
+}
+
+void thread_yield_to_higher_priority ( void )
+{
+  enum intr_level old_level = intr_disable();
+  if( !list_empty( &ready_list ) )
+  {
+    struct thread *cur = thread_current();
+    struct thread *max = list_entry( list_max( &ready_list, thread_lower_priority, NULL ), struct thread, elem );
+    if( max->priority > cur->priority )
+    {
+      if( intr_context() )
+      {
+        intr_yield_on_return();
+      }
+      else
+      {
+        thread_yield();
+      }
+    }
+  }
+  intr_set_level( old_level );
+}
+
+
+
