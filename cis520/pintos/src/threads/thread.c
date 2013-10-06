@@ -246,7 +246,6 @@ thread_unblock (struct thread *t)
 
   old_level = intr_disable ();
   ASSERT (t->status == THREAD_BLOCKED);
-  //list_push_back (&ready_list, &t->elem);
   list_insert_ordered( &ready_list, &(t->elem), thread_higher_priority, NULL );
   t->status = THREAD_READY;
   intr_set_level (old_level);
@@ -319,7 +318,6 @@ thread_yield (void)
   old_level = intr_disable ();
   if (cur != idle_thread) 
   {
-    //list_push_back (&ready_list, &cur->elem);
     list_insert_ordered( &ready_list, &(cur->elem), thread_higher_priority, NULL );
   }
   cur->status = THREAD_READY;
@@ -350,7 +348,7 @@ thread_set_priority (int new_priority)
 {
 //HERE
   thread_current ()->priority = new_priority;
-  list_sort ( &ready_list, thread_lower_priority, NULL );
+  sort_ready_list();
   thread_yield_to_higher_priority();
 }
 
@@ -358,7 +356,9 @@ thread_set_priority (int new_priority)
 int
 thread_get_priority (void) 
 {
-  return thread_current ()->priority;
+  struct thread *t = thread_current();
+
+  return (t->priority > t->dPriority ? t->priority : t->dPriority) ;
 }
 
 /* Sets the current thread's nice value to NICE. */
@@ -476,9 +476,11 @@ init_thread (struct thread *t, const char *name, int priority)
   strlcpy (t->name, name, sizeof t->name);
   t->stack = (uint8_t *) t + PGSIZE;
   t->priority = priority;
+  t->dPriority = PRI_MIN;
   t->magic = THREAD_MAGIC;
   list_push_back (&all_list, &t->allelem);
   sema_init( &(t->s), 0 );
+  list_init( &(t->locksHeld) );
 }
 
 /* Allocates a SIZE-byte frame at the top of thread T's stack and
@@ -601,7 +603,10 @@ bool thread_higher_priority(const struct list_elem *a_, const struct list_elem *
   const struct thread *a = list_entry(a_, struct thread, elem);
   const struct thread *b = list_entry(b_, struct thread, elem);
 
-  return a->priority > b->priority;
+  int aPri = a->priority > a->dPriority ? a->priority : a->dPriority;
+  int bPri = b->priority > b->dPriority ? b->priority : b->dPriority;
+
+  return aPri > bPri;
 }
 
 void thread_yield_to_higher_priority ( void )
@@ -627,4 +632,8 @@ void thread_yield_to_higher_priority ( void )
 }
 
 
+void sort_ready_list( void )
+{
+  list_sort ( &ready_list, thread_higher_priority, NULL );
+}
 
