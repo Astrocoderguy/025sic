@@ -19,6 +19,7 @@ enum thread_status
    You can redefine this to whatever type you like. */
 typedef int tid_t;
 #define TID_ERROR ((tid_t) -1)          /* Error value for tid_t. */
+#define THREAD_PRI( t ) (t->priority > t->dPriority ? t->priority : t->dPriority)
 
 /* Thread priorities. */
 #define PRI_MIN 0                       /* Lowest priority. */
@@ -89,10 +90,13 @@ struct thread
     char name[16];                      /* Name (for debugging purposes).     */
     uint8_t *stack;                     /* Saved stack pointer.               */
     int priority;                       /* Priority.                          */
+    int dPriority;                      /* Donated Priority                   */
     struct list_elem allelem;           /* List element for all threads list. */
     struct semaphore s;                 /* Semaphore variable                 */
-    int64_t wake;			/* Wake up time in ticks	      */
+    int64_t wake;			                  /* Wake up time in ticks	      */
     struct list_elem alarm_elem;        /* List element for the alarm         */
+    struct list_elem donationElem;      /* List element for priority donation */    
+    struct list locksHeld;                      /* Number of locks held by this thread*/                                         
 
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element.                      */
@@ -145,4 +149,5 @@ int thread_get_load_avg (void);
 bool thread_higher_priority(const struct list_elem *a_, const struct list_elem *b_, void *aus);
 void thread_yield_to_higher_priority ( void );
 
+void sort_ready_list( void );
 #endif /* threads/thread.h */

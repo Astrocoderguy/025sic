@@ -109,6 +109,10 @@ struct list
         ((STRUCT *) ((uint8_t *) &(LIST_ELEM)->next     \
                      - offsetof (STRUCT, MEMBER.next)))
 
+#define owner_of_list( HEAD, STRUCT, MEMBER )           \
+        ((STRUCT *) ((uint8_t *) HEAD - offsetof (STRUCT, MEMBER)))
+
+
 /* List initialization.
 
    A list may be initialized by calling list_init():
@@ -178,4 +182,5 @@ void list_unique (struct list *, struct list *duplicates,
 struct list_elem *list_max (struct list *, list_less_func *, void *aux);
 struct list_elem *list_min (struct list *, list_less_func *, void *aux);
 
+        
 #endif /* lib/kernel/list.h */

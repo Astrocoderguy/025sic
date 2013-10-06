@@ -249,9 +249,13 @@ struct list_elem *
 list_remove (struct list_elem *elem)
 {
   ASSERT (is_interior (elem));
+  struct list_elem *temp;
+  temp = elem->next;
   elem->prev->next = elem->next;
   elem->next->prev = elem->prev;
-  return elem->next;
+  elem->next = NULL;
+  elem->prev = NULL;
+  return temp;
 }
 
 /* Removes the front element from LIST and returns it.
@@ -522,3 +526,4 @@ list_min (struct list *list, list_less_func *less, void *aux)
     }
   return min;
 }
+
