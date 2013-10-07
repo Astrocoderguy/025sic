@@ -207,6 +207,7 @@ lock_acquire (struct lock *lock)
   {
     list_push_front ( &(lock->waiters), &(thread_current()->donationElem) );
     priority_donate( lock );
+    sort_ready_list();
     sema_down (&lock->semaphore);
     list_remove( &(cur->donationElem) );
   }
@@ -384,11 +385,8 @@ bool thread_lower_priority(const struct list_elem *a_, const struct list_elem *b
 {
   const struct thread *a = list_entry(a_, struct thread, elem);
   const struct thread *b = list_entry(b_, struct thread, elem);
-  int aPri = a->priority > a->dPriority ? a->priority : a->dPriority;
-  int bPri = b->priority > b->dPriority ? b->priority : b->dPriority;
 
-
-  return aPri < bPri;
+  return THREAD_PRI( a ) < THREAD_PRI( b );
 }
 
 bool sema_elem_lower_priority(const struct list_elem *a_, const struct list_elem *b_, void *aux UNUSED)
@@ -402,10 +400,7 @@ bool sema_elem_lower_priority(const struct list_elem *a_, const struct list_elem
   struct thread* ta = list_entry( maxa, struct thread, elem );
   struct thread* tb = list_entry( maxb, struct thread, elem );
 
-  int aPri = ta->priority > ta->dPriority ? ta->priority : ta->dPriority;
-  int bPri = tb->priority > tb->dPriority ? tb->priority : tb->dPriority;
-
-  return aPri < bPri;
+  return THREAD_PRI( ta ) < THREAD_PRI( tb );
 }
 
 static
@@ -429,5 +424,4 @@ void priority_donate( struct lock *l )
     priority_donate( theLock );
   }
 
-  sort_ready_list();
 }

@@ -358,7 +358,7 @@ thread_get_priority (void)
 {
   struct thread *t = thread_current();
 
-  return (t->priority > t->dPriority ? t->priority : t->dPriority) ;
+  return THREAD_PRI( t );
 }
 
 /* Sets the current thread's nice value to NICE. */
@@ -603,10 +603,7 @@ bool thread_higher_priority(const struct list_elem *a_, const struct list_elem *
   const struct thread *a = list_entry(a_, struct thread, elem);
   const struct thread *b = list_entry(b_, struct thread, elem);
 
-  int aPri = a->priority > a->dPriority ? a->priority : a->dPriority;
-  int bPri = b->priority > b->dPriority ? b->priority : b->dPriority;
-
-  return aPri > bPri;
+  return THREAD_PRI( a ) > THREAD_PRI( b );
 }
 
 void thread_yield_to_higher_priority ( void )
