@@ -20,9 +20,6 @@
 /* Number of timer ticks since OS booted. */
 static int64_t ticks;
 
-/* list of sleeping threads */
-static struct list sleeping_threads;
-
 /* Number of loops per timer tick.
    Initialized by timer_calibrate(). */
 static unsigned loops_per_tick;
@@ -33,15 +30,11 @@ static void busy_wait (int64_t loops);
 static void real_time_sleep (int64_t num, int32_t denom);
 static void real_time_delay (int64_t num, int32_t denom);
 
-/* Thread wait compare */
-static bool compare_thread_wait(const struct list_elem *t1, const struct list_elem *t2, void* aux);
-
 /* Sets up the timer to interrupt TIMER_FREQ times per second,
    and registers the corresponding interrupt. */
 void
 timer_init (void) 
 {
-  list_init (&sleeping_threads);
   pit_configure_channel (0, 2, TIMER_FREQ);
   intr_register_ext (0x20, timer_interrupt, "8254 Timer");
 }
@@ -96,20 +89,11 @@ timer_elapsed (int64_t then)
 void
 timer_sleep (int64_t ticks) 
 {
-  struct thread *t = thread_current();
-  
   int64_t start = timer_ticks ();
-  t->wake = start + ticks;
 
   ASSERT (intr_get_level () == INTR_ON);
-
-  intr_disable();
-
-  list_insert_ordered( &sleeping_threads, &(t->alarm_elem), compare_thread_wait, NULL );
-
-  intr_enable();
-  sema_down(&(t->s));
-  
+  while (timer_elapsed (start) < ticks) 
+    thread_yield ();
 }
 
 /* Sleeps for approximately MS milliseconds.  Interrupts must be
@@ -188,21 +172,6 @@ timer_interrupt (struct intr_frame *args UNUSED)
 {
   ticks++;
   thread_tick ();
-  struct thread *t;
-  if( !list_empty (&sleeping_threads))
-  {
-    t = list_entry(list_begin(&sleeping_threads), struct thread, alarm_elem);
-    while( t->wake <= timer_ticks() )
-    {
-      list_pop_front(&sleeping_threads);
-      sema_up( &(t->s) );
-      intr_yield_on_return();
-      if(list_empty (&sleeping_threads)) break;
-      
-      t = list_entry(list_begin(&sleeping_threads), struct thread, alarm_elem);
-    }
-
-  }
 }
 
 /* Returns true if LOOPS iterations waits for more than one timer
@@ -275,14 +244,3 @@ real_time_delay (int64_t num, int32_t denom)
   ASSERT (denom % 1000 == 0);
   busy_wait (loops_per_tick * num / 1000 * TIMER_FREQ / (denom / 1000)); 
 }
-
-
-/* Thread wait compare */
-static bool compare_thread_wait(const struct list_elem *t1, const struct list_elem *t2, void* aux UNUSED)
-{
-  const struct thread *a = list_entry (t1, struct thread, alarm_elem);
-  const struct thread *b = list_entry (t2, struct thread, alarm_elem);
-  
-  return (a->wake < b->wake);
-}
-
