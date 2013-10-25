@@ -47,7 +47,7 @@ struct syscall
 {
   size_t arg_cnt;           /* Number of arguements */
   syscall_function *func;   /* Implementation       */
-}
+};
 
 static const struct syscall syscall_table[] =
 {
@@ -64,7 +64,7 @@ static const struct syscall syscall_table[] =
   {2, (syscall_function * ) sys_seek},
   {1, (syscall_function * ) sys_tell},
   {1, (syscall_function * ) sys_close}
-}
+};
 
 /* System call handler. */
 static void
@@ -76,17 +76,17 @@ syscall_handler (struct intr_frame *f UNUSED)
 
   /* Get the system call */
   copy_in( &call_nr, f->esp, sizeof(call_nr) );
-  if( call_nr >= sizeof(sycall_table) / sizeof(*sycall_table) ) 
+  if( call_nr >= sizeof(syscall_table) / sizeof(*syscall_table) ) 
     thread_exit();
   sc = syscall_table + call_nr;
 
   /* Get the system call arguments */
   ASSERT( sc->arg_cnt <= sizeof( args) / sizeof( *args ) );
   memset( args, 0, sizeof( args ));
-  copy_in( args, (uint23_t *) f->esp + 1, sizeof( *args * sc->arg_cnt ) );
+  copy_in( args, (uint32_t *) f->esp + 1, sizeof( *args * sc->arg_cnt ) );
 
   /* Execute system call and set return value */
-  f->aex = sc->func( args[0], args[1], args[2] );
+  f->eax = sc->func( args[0], args[1], args[2] );
 /*
   printf ("system call!\n");
   thread_exit ();

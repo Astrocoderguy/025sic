@@ -21,6 +21,7 @@
 
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmd_line, void (**eip) (void), void **esp);
+static void reverse (int argc, char **argv);
 
 /* Data structure shared between process_execute() in the
    invoking thread and start_process() in the newly invoked
@@ -38,21 +39,31 @@ struct exec_info
    before process_execute() returns.  Returns the new process's
    thread id, or TID_ERROR if the thread cannot be created. */
 tid_t
-process_execute (const char *file_name) 
+process_execute (const char *argument) 
 {
   struct exec_info exec;
-  char thread_name[16];
-  char *save_ptr;
+  int i = 0;
+  char *args_cpy;
+  char *token, *save_ptr, **args;
   tid_t tid;
 
+  strlcpy( args_cpy, argument, sizeof argument );
+  for (token = strtok_r (args_cpy, " ", &save_ptr); token != NULL;
+      token = strtok_r (NULL, " ", &save_ptr))
+    {
+    strlcpy( args[i], token, sizeof token );
+    i++;
+    //printf ("'%s'\n", token);
+    }
+
+  reverse( (i-1), args );  
+
   /* Initialize exec_info. */
-  exec.file_name = file_name;
+  exec.file_name = args[0];
   sema_init (&exec.load_done, 0);
 
-  /* Create a new thread to execute FILE_NAME. */
-  strlcpy (thread_name, file_name, sizeof thread_name);
-  strtok_r (thread_name, " ", &save_ptr);
-  tid = thread_create (thread_name, PRI_DEFAULT, start_process, &exec);
+  //strtok_r (thread_name, " ", &save_ptr);
+  tid = thread_create (args[0], PRI_DEFAULT, start_process, &exec);
   if (tid != TID_ERROR)
     {
       sema_down (&exec.load_done);
@@ -514,7 +525,13 @@ static void
 reverse (int argc, char **argv) 
 {
    /* add code */
-
+   char **temp_argv;
+   int temp = argc;
+   for( ; temp >= 0; temp-- )
+      {
+      strlcpy( temp_argv[argc - temp], argv[temp], sizeof argv[temp] ); 
+      }
+   memcpy( argv, temp_argv, sizeof argv );
    return;
 }
 
