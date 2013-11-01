@@ -21,6 +21,7 @@
 
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmd_line, void (**eip) (void), void **esp);
+static void reverse (int argc, char **argv);
 
 /* Data structure shared between process_execute() in the
    invoking thread and start_process() in the newly invoked
@@ -38,7 +39,7 @@ struct exec_info
    before process_execute() returns.  Returns the new process's
    thread id, or TID_ERROR if the thread cannot be created. */
 tid_t
-process_execute (const char *file_name) 
+process_execute (const char *arguments) 
 {
   struct exec_info exec;
   char thread_name[16];
@@ -46,11 +47,11 @@ process_execute (const char *file_name)
   tid_t tid;
 
   /* Initialize exec_info. */
-  exec.file_name = file_name;
+  exec.file_name = arguments;
   sema_init (&exec.load_done, 0);
 
   /* Create a new thread to execute FILE_NAME. */
-  strlcpy (thread_name, file_name, sizeof thread_name);
+  strlcpy (thread_name, arguments, sizeof thread_name);
   strtok_r (thread_name, " ", &save_ptr);
   tid = thread_create (thread_name, PRI_DEFAULT, start_process, &exec);
   if (tid != TID_ERROR)
@@ -139,6 +140,7 @@ release_child (struct wait_status *cs)
 int
 process_wait (tid_t child_tid) 
 {
+  //while( 1 ){}
   return -1;
 }
 
@@ -503,18 +505,27 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 
       /* Advance. */
       read_bytes -= page_read_bytes;
-      zero_bytes -= page_zero_bytes;
+      zero_bytes -= page_zero_bytes;  
       upage += PGSIZE;
-    }
-  return true;
+    }                                 
+  return true;                       
 }
 
 /* Reverse the order of the ARGC pointers to char in ARGV. */
 static void
 reverse (int argc, char **argv) 
 {
-   /* add code */
+   char* ptr;
+   int temp = argc / 2;
+   int i;
 
+   for( i = 0; i < temp; i++ )
+     {
+     //Swap pointers
+     ptr = argv[i];
+     argv[i] = argv[argc - i - 1];
+     argv[argc - i - 1] = ptr; 
+     }
    return;
 }
 
@@ -551,6 +562,42 @@ init_cmd_line (uint8_t *kpage, uint8_t *upage, const char *cmd_line,
   char *karg, *saveptr;
   int argc;
   char **argv;
+  int i;
+
+/* Argument Passing */
+/*(
+  char *save_ptr;
+  int i = 0;
+  int count = 0;
+  int tok_len = 0;
+  int arg_len = 0;
+  char *args_cpy;
+  char *token;
+  char **args;
+
+  arg_len = strnlen(exec->file_name, PGSIZE);
+  args_cpy = (char*)malloc( arg_len );
+  strlcpy( args_cpy, exec->file_name, PGSIZE );
+  args = (char**)malloc( 10*(sizeof (char*)) );
+
+  for (token = strtok_r (args_cpy, " ", &save_ptr); token != NULL; token = strtok_r (NULL, " ", &save_ptr), i++)
+    {
+    tok_len = strnlen(token, PGSIZE);
+    args[i] = (char*)malloc( tok_len );
+    strlcpy( args[i], token, PGSIZE);
+    //printf("%s\n", args[i]);
+    }
+
+  reverse( i, args );  
+  /*for( count = 0; count < i; count++ )
+  {
+  //printf("%s\n", args[count]);
+  //asm volatile                                                   
+  //("pushl %[arg];" : : [arg] "g" (args[count]) : "memory");  
+  }*/
+
+
+  /* End of Argument Passing */
 
   /* Push a temporary working copy of the command line string. */
   cmd_line_copy = push (kpage, &ofs, cmd_line, strlen (cmd_line) + 1);
@@ -577,8 +624,13 @@ init_cmd_line (uint8_t *kpage, uint8_t *upage, const char *cmd_line,
   reverse (argc, (char **) (kpage + ofs));
 
   /* Push argv, argc, "return address". */
-  if (push (kpage, &ofs, &argv, sizeof argv) == NULL
-      || push (kpage, &ofs, &argc, sizeof argc) == NULL
+	for(i = 0; i < argc; i++){
+		  if (push (kpage, &ofs, &(argv[i]), sizeof argv) == NULL)
+				return false;
+	}
+
+  if (//push (kpage, &ofs, &argv, (sizeof argv) * argc) == NULL ||
+       push (kpage, &ofs, &argc, sizeof argc) == NULL
       || push (kpage, &ofs, &null, sizeof null) == NULL)
     return false;
 
