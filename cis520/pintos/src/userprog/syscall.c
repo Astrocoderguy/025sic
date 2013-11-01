@@ -14,6 +14,7 @@
 #include "threads/thread.h"
 #include "threads/vaddr.h"
  
+
  
 static int sys_halt (void);
 static int sys_exit (int status);
@@ -44,15 +45,60 @@ syscall_init (void)
  
 /* System call handler. */
 
+typedef int syscall_function( int, int, int );
+struct syscall
+{
+  size_t arg_cnt; /* Number of arguements */
+  syscall_function *func; /* Implementation */
+};
+
+static const struct syscall syscall_table[] =
+{
+  {0, (syscall_function * ) sys_halt},
+  {1, (syscall_function * ) sys_exit},
+  {1, (syscall_function * ) sys_exec},
+  {1, (syscall_function * ) sys_wait},
+  {2, (syscall_function * ) sys_create},
+  {1, (syscall_function * ) sys_remove},
+  {1, (syscall_function * ) sys_open},
+  {1, (syscall_function * ) sys_filesize},
+  {3, (syscall_function * ) sys_read},
+  {3, (syscall_function * ) sys_write},
+  {2, (syscall_function * ) sys_seek},
+  {1, (syscall_function * ) sys_tell},
+  {1, (syscall_function * ) sys_close}
+};
+
+/* System call handler. */
 static void
 syscall_handler (struct intr_frame *f UNUSED)
 {
-  printf ("system call!\n");
-  thread_exit ();
+  const struct syscall *sc;
+  unsigned call_nr;
+  int args[3];
+
+  /* Get the system call */
+  copy_in( &call_nr, f->esp, sizeof(call_nr) );
+  if( call_nr >= sizeof(syscall_table) / sizeof(*syscall_table) )
+    thread_exit();
+  sc = syscall_table + call_nr;
+
+  /* Get the system call arguments */
+  ASSERT( sc->arg_cnt <= sizeof( args) / sizeof( *args ) );
+  memset( args, 0, sizeof( args ));
+  copy_in( args, (uint32_t *) f->esp + 1, sizeof( *args ) * sc->arg_cnt  );
+
+  //printf ("sys call handler!\n");
+  /* Execute system call and set return value */
+  f->eax = sc->func( args[0], args[1], args[2] );
+
+/*
+thread_exit ();
+*/
 }
 
 /* Returns true if UADDR is a valid, mapped user address,
-   false otherwise. */
+false otherwise. */
 static bool
 verify_user (const void *uaddr) 
 {
@@ -95,7 +141,10 @@ copy_in (void *dst_, const void *usrc_, size_t size)
  
   for (; size > 0; size--, dst++, usrc++) 
     if (usrc >= (uint8_t *) PHYS_BASE || !get_user (dst, usrc)) 
-      thread_exit ();
+	{
+  	printf ("copy_in!\n");
+   	thread_exit ();
+	}
 }
  
 /* Creates a copy of user string US in kernel memory
@@ -111,13 +160,17 @@ copy_in_string (const char *us)
  
   ks = palloc_get_page (0);
   if (ks == NULL)
+	{
+  	printf ("copy_in_string!\n");
     thread_exit ();
+	}
  
   for (length = 0; length < PGSIZE; length++)
     {
       if (us >= (char *) PHYS_BASE || !get_user (ks + length, us++)) 
         {
           palloc_free_page (ks);
+  				printf ("copy_in_string!\n");
           thread_exit (); 
         }
       if (ks[length] == '\0')
@@ -139,6 +192,7 @@ static int
 sys_exit (int exit_code) 
 {
   thread_current ()->wait_status->exit_code = exit_code;
+  //printf ("sys_exit!\n");
   thread_exit ();
   NOT_REACHED ();
 }
@@ -148,7 +202,7 @@ static int
 sys_exec (const char *ufile) 
 {
 /* Add code */
-  thread_exit ();
+  //thread_exit ();
 }
  
 /* Wait system call. */
@@ -156,7 +210,7 @@ static int
 sys_wait (tid_t child) 
 {
 /* Add code */
-  thread_exit ();
+  //thread_exit ();
 }
  
 /* Create system call. */
@@ -216,7 +270,7 @@ static struct file_descriptor *
 lookup_fd (int handle)
 {
 /* Add code to lookup file descriptor in the current thread's fds */
-  thread_exit ();
+  //thread_exit ();
 }
  
 /* Filesize system call. */
@@ -224,7 +278,7 @@ static int
 sys_filesize (int handle) 
 {
 /* Add code */
-  thread_exit ();
+  //thread_exit ();
 }
  
 /* Read system call. */
@@ -232,7 +286,7 @@ static int
 sys_read (int handle, void *udst_, unsigned size) 
 {
 /* Add code */
-  thread_exit ();
+  //thread_exit ();
 }
  
 /* Write system call. */
@@ -261,7 +315,6 @@ sys_write (int handle, void *usrc_, unsigned size)
           lock_release (&fs_lock);
           thread_exit ();
         }
-
       /* Do the write. */
       if (handle == STDOUT_FILENO)
         {
@@ -287,7 +340,6 @@ sys_write (int handle, void *usrc_, unsigned size)
       size -= retval;
     }
   lock_release (&fs_lock);
- 
   return bytes_written;
 }
  
@@ -296,7 +348,7 @@ static int
 sys_seek (int handle, unsigned position) 
 {
 /* Add code */
-  thread_exit ();
+  //thread_exit ();
 }
  
 /* Tell system call. */
@@ -304,7 +356,7 @@ static int
 sys_tell (int handle) 
 {
 /* Add code */
-  thread_exit ();
+  //thread_exit ();
 }
  
 /* Close system call. */
@@ -312,7 +364,7 @@ static int
 sys_close (int handle) 
 {
 /* Add code */
-  thread_exit ();
+  //thread_exit ();
 }
  
 /* On thread exit, close all open files. */
