@@ -160,11 +160,8 @@ copy_in_string (const char *us)
   char *ks;
   size_t length;
 
-  /* Check that pointer is not null */
-  if( us == NULL || pagedir_get_page(thread_current ()->pagedir, us) == NULL ) return NULL;
-
-  /* Check that pointer is not to unmapped virtual memory */
- // if( verify_user(us) ) return NULL;
+  /* Check that pointer is not null or unmapped virtual memory addr */
+  if( us == NULL || !verify_user(us) ) return NULL;
  
   ks = palloc_get_page (0);
   if ( ks == NULL ) thread_exit ();
@@ -203,18 +200,25 @@ sys_exit (int exit_code)
 static int
 sys_exec (const char *ufile) 
 {
-/* Add code */
-	return process_execute( ufile );
-  //thread_exit ();
+  int ret_value;
+
+  char *kfile = copy_in_string (ufile);
+
+  /* If file is NULL then return error */
+  if( kfile == NULL ) thread_exit ();
+  
+  ret_value = process_execute( kfile );
+
+  palloc_free_page (kfile);
+
+  return ret_value;
 }
  
 /* Wait system call. */
 static int
 sys_wait (tid_t child) 
 {
-/* Add code */
-	return process_wait( child );
-  //thread_exit ();
+  return process_wait( child );
 }
  
 /* Create system call. */
@@ -256,13 +260,10 @@ sys_open (const char *ufile)
 {
   char *kfile = copy_in_string (ufile);
 
-  /* If file is NULL then return error */
-  if(kfile == NULL) return -1;
-
   struct file_descriptor *fd;
   int handle = -1;
 
-
+ if( kfile == NULL ) thread_exit ();
 
   fd = malloc (sizeof *fd);
   if (fd != NULL)
@@ -320,11 +321,21 @@ sys_filesize (int handle)
 static int
 sys_read (int handle, void *udst_, unsigned size) 
 {
-/* Add code */
-	struct file_descriptor *fd;
-	fd = lookup_fd (handle);
-	return file_read (fd->file, udst_, size);
-  //thread_exit ();
+
+  int ret_value;
+
+  char *kfile = copy_in_string (udst_);
+
+  /* If file is NULL then return error */
+  if( kfile == NULL ) thread_exit ();
+  
+  struct file_descriptor *fd;
+  fd = lookup_fd (handle);
+  ret_value = file_read (fd->file, kfile, size);
+
+  palloc_free_page (kfile);
+
+  return ret_value;
 }
  
 /* Write system call. */
