@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <limits.h>
 #include "userprog/gdt.h"
 #include "userprog/pagedir.h"
 #include "userprog/tss.h"
@@ -140,7 +141,29 @@ release_child (struct wait_status *cs)
 int
 process_wait (tid_t child_tid) 
 {
-  //while( 1 ){}
+  struct list children;
+  struct list_elem *e;
+  struct wait_status *child, *temp;  
+  child = NULL;
+  children = thread_current()->children;
+  
+  //if( children )
+ // {
+    for (e = list_begin (&children); e != list_end (&children); e = list_next(e))
+    {
+      temp = (struct wait_status*) list_entry( e, struct wait_status, elem);
+      if( temp->tid == child_tid )
+      {
+        child = temp;
+      }
+      if( e != NULL && e->prev != NULL && e->next == NULL ) break;
+    }
+    if( child ) 
+    {
+      sema_down( &(child->dead) );
+      return child->exit_code;
+    }
+ // }
   return -1;
 }
 
@@ -162,7 +185,7 @@ process_exit (void)
 
       /* add code */
       printf ("%s: exit(0)\n", cur->name); // HACK all successful ;-)
-
+      sema_up( &(thread_current()->wait_status->dead) );
       release_child (cs);
     }
 
@@ -623,13 +646,8 @@ init_cmd_line (uint8_t *kpage, uint8_t *upage, const char *cmd_line,
   argv = (char **) (upage + ofs);
   reverse (argc, (char **) (kpage + ofs));
 
-  /* Push argv, argc, "return address". */
-	for(i = 0; i < argc; i++){
-		  if (push (kpage, &ofs, &(argv[i]), sizeof argv) == NULL)
-				return false;
-	}
 
-  if (//push (kpage, &ofs, &argv, (sizeof argv) * argc) == NULL ||
+  if ( push (kpage, &ofs, &argv, sizeof argv) == NULL ||
        push (kpage, &ofs, &argc, sizeof argc) == NULL
       || push (kpage, &ofs, &null, sizeof null) == NULL)
     return false;
