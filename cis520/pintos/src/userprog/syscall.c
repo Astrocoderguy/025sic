@@ -80,7 +80,7 @@ syscall_handler (struct intr_frame *f UNUSED)
   /* Get the system call */
   copy_in( &call_nr, f->esp, sizeof(call_nr) );
   if( call_nr >= sizeof(syscall_table) / sizeof(*syscall_table) )
-    thread_exit();
+	thread_exit();
   sc = syscall_table + call_nr;
 
   /* Get the system call arguments */
@@ -88,7 +88,6 @@ syscall_handler (struct intr_frame *f UNUSED)
   memset( args, 0, sizeof( args ));
   copy_in( args, (uint32_t *) f->esp + 1, sizeof( *args ) * sc->arg_cnt  );
 
-  //printf ("sys call handler!\n");
   /* Execute system call and set return value */
   f->eax = sc->func( args[0], args[1], args[2] );
 
@@ -142,7 +141,6 @@ copy_in (void *dst_, const void *usrc_, size_t size)
   for (; size > 0; size--, dst++, usrc++) 
     if (usrc >= (uint8_t *) PHYS_BASE || !get_user (dst, usrc)) 
 	{
-  	printf ("copy_in!\n");
    	thread_exit ();
 	}
 }
@@ -161,7 +159,6 @@ copy_in_string (const char *us)
   ks = palloc_get_page (0);
   if (ks == NULL)
 	{
-  	printf ("copy_in_string!\n");
     thread_exit ();
 	}
  
@@ -170,7 +167,6 @@ copy_in_string (const char *us)
       if (us >= (char *) PHYS_BASE || !get_user (ks + length, us++)) 
         {
           palloc_free_page (ks);
-  				printf ("copy_in_string!\n");
           thread_exit (); 
         }
       if (ks[length] == '\0')
@@ -192,7 +188,6 @@ static int
 sys_exit (int exit_code) 
 {
   thread_current ()->wait_status->exit_code = exit_code;
-  //printf ("sys_exit!\n");
   thread_exit ();
   NOT_REACHED ();
 }
@@ -202,6 +197,7 @@ static int
 sys_exec (const char *ufile) 
 {
 /* Add code */
+	return process_execute( ufile );
   //thread_exit ();
 }
  
@@ -210,6 +206,7 @@ static int
 sys_wait (tid_t child) 
 {
 /* Add code */
+	return process_wait( child );
   //thread_exit ();
 }
  

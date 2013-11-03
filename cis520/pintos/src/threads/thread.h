@@ -125,6 +125,7 @@ struct wait_status
     tid_t tid;                          /* Child thread id. */
     int exit_code;                      /* Child exit code, if dead. */
     struct semaphore dead;              /* 0=child alive, 1=child dead. */
+		bool parentWaited;
   };
 
 /* If false (default), use round-robin scheduler.

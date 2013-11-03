@@ -19,6 +19,7 @@
 #include "threads/palloc.h"
 #include "threads/thread.h"
 #include "threads/vaddr.h"
+#include "syscall.h"
 
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmd_line, void (**eip) (void), void **esp);
@@ -48,12 +49,14 @@ process_execute (const char *arguments)
   tid_t tid;
 
   /* Initialize exec_info. */
-  exec.file_name = arguments;
+  exec.file_name = (char *) malloc( (strlen( arguments ) +1) * sizeof( char ) );
+  strlcpy( exec.file_name, arguments, strlen( arguments ) + 1);
   sema_init (&exec.load_done, 0);
 
   /* Create a new thread to execute FILE_NAME. */
   strlcpy (thread_name, arguments, sizeof thread_name);
   strtok_r (thread_name, " ", &save_ptr);
+
   tid = thread_create (thread_name, PRI_DEFAULT, start_process, &exec);
   if (tid != TID_ERROR)
     {
@@ -76,13 +79,15 @@ start_process (void *exec_)
   struct intr_frame if_;
   bool success;
 
+	//printf( "start_process, %s\n", exec->file_name );
   /* Initialize interrupt frame and load executable. */
   memset (&if_, 0, sizeof if_);
   if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;
   if_.cs = SEL_UCSEG;
   if_.eflags = FLAG_IF | FLAG_MBS;
+	
   success = load (exec->file_name, &if_.eip, &if_.esp);
-
+	
   /* Allocate wait_status. */
   if (success)
     {
@@ -98,6 +103,7 @@ start_process (void *exec_)
       exec->wait_status->ref_cnt = 2;
       exec->wait_status->tid = thread_current ()->tid;
       exec->wait_status->exit_code = -1;
+			exec->wait_status->parentWaited = false;
       sema_init (&exec->wait_status->dead, 0);
     }
   
@@ -147,23 +153,22 @@ process_wait (tid_t child_tid)
   child = NULL;
   children = thread_current()->children;
   
-  //if( children )
- // {
-    for (e = list_begin (&children); e != list_end (&children); e = list_next(e))
+
+  for (e = list_begin (&children); e != list_end (&children); e = list_next(e))
+  {
+    temp = (struct wait_status*) list_entry( e, struct wait_status, elem);
+    if( temp->tid == child_tid )
     {
-      temp = (struct wait_status*) list_entry( e, struct wait_status, elem);
-      if( temp->tid == child_tid )
-      {
-        child = temp;
-      }
-      if( e != NULL && e->prev != NULL && e->next == NULL ) break;
+      child = temp;
     }
-    if( child ) 
-    {
-      sema_down( &(child->dead) );
-      return child->exit_code;
-    }
- // }
+    if( e != NULL && e->prev != NULL && e->next == NULL ) break;
+  }
+  if( child && !(child->parentWaited) ) 
+  {
+    sema_down( &(child->dead) );
+		child->parentWaited = true;
+    return child->exit_code;
+  }
   return -1;
 }
 
@@ -184,7 +189,7 @@ process_exit (void)
       struct wait_status *cs = cur->wait_status;
 
       /* add code */
-      printf ("%s: exit(0)\n", cur->name); // HACK all successful ;-)
+      printf ("%s: exit(%i)\n", cur->name, cur->wait_status->exit_code); // HACK all successful ;-)
       sema_up( &(thread_current()->wait_status->dead) );
       release_child (cs);
     }
@@ -324,13 +329,13 @@ load (const char *cmd_line, void (**eip) (void), void **esp)
   process_activate ();
 
   /* Extract file_name from command line. */
+	//printf( "load, %s\n", cmd_line );
   while (*cmd_line == ' ')
     cmd_line++;
   strlcpy (file_name, cmd_line, sizeof file_name);
   cp = strchr (file_name, ' ');
   if (cp != NULL)
     *cp = '\0';
-
   /* Open executable file. */
   t->bin_file = file = filesys_open (file_name);
   if (file == NULL) 
