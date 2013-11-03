@@ -313,15 +313,15 @@ lookup_fd (int handle)
 static int
 sys_filesize (int handle) 
 {
-/* Add code */
-  //thread_exit ();
+	struct file_descriptor *fd;
+	fd = lookup_fd (handle);
+	return file_length (fd->file);
 }
  
 /* Read system call. */
 static int
 sys_read (int handle, void *udst_, unsigned size) 
 {
-
   int ret_value;
 
   char *kfile = copy_in_string (udst_);
