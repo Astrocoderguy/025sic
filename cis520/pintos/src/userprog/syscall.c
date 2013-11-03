@@ -214,7 +214,7 @@ sys_wait (tid_t child)
 static int
 sys_create (const char *ufile, unsigned initial_size) 
 {
-  return 0;
+	return filesys_create( ufile, initial_size );
 }
  
 /* Remove system call. */
@@ -267,7 +267,21 @@ static struct file_descriptor *
 lookup_fd (int handle)
 {
 /* Add code to lookup file descriptor in the current thread's fds */
-  //thread_exit ();
+	struct file_descriptor *fd, *temp;
+	struct thread *cur = thread_current ();
+  struct list_elem *e;
+
+  for (e = list_begin (&cur->fds); e != list_end (&cur->fds); e = list_next(e))
+  {
+    fd = (struct file_descriptor*) list_entry( e, struct file_descriptor, elem);
+    if( handle == fd->handle )
+    {
+      return fd;
+    }
+    if( e != NULL && e->prev != NULL && e->next == NULL ) break;
+  }
+
+  thread_exit ();
 }
  
 /* Filesize system call. */
@@ -283,6 +297,9 @@ static int
 sys_read (int handle, void *udst_, unsigned size) 
 {
 /* Add code */
+	struct file_descriptor *fd;
+	fd = lookup_fd (handle);
+	return file_read (fd->file, udst_, size);
   //thread_exit ();
 }
  
