@@ -91,9 +91,6 @@ syscall_handler (struct intr_frame *f UNUSED)
   /* Execute system call and set return value */
   f->eax = sc->func( args[0], args[1], args[2] );
 
-/*
-thread_exit ();
-*/
 }
 
 /* Returns true if UADDR is a valid, mapped user address,
@@ -137,9 +134,16 @@ copy_in (void *dst_, const void *usrc_, size_t size)
 {
   uint8_t *dst = dst_;
   const uint8_t *usrc = usrc_;
+
+  /* Check if usrc is not null */
+  //if( usrc == NULL ) thread_exit();
+
+  /* Check that usrc is not pointing to unmapped virtural memory */
+  //TODO
+
  
   for (; size > 0; size--, dst++, usrc++) 
-    if (usrc >= (uint8_t *) PHYS_BASE || !get_user (dst, usrc)) 
+    if (!is_user_vaddr(usrc) || !get_user (dst, usrc)) 
 	{
    	thread_exit ();
 	}
@@ -155,16 +159,19 @@ copy_in_string (const char *us)
 {
   char *ks;
   size_t length;
+
+  /* Check that pointer is not null */
+  if( us == NULL || pagedir_get_page(thread_current ()->pagedir, us) == NULL ) return NULL;
+
+  /* Check that pointer is not to unmapped virtual memory */
+ // if( verify_user(us) ) return NULL;
  
   ks = palloc_get_page (0);
-  if (ks == NULL)
-	{
-    thread_exit ();
-	}
- 
+  if ( ks == NULL ) thread_exit ();
+
   for (length = 0; length < PGSIZE; length++)
     {
-      if (us >= (char *) PHYS_BASE || !get_user (ks + length, us++)) 
+      if (!is_user_vaddr(us) || !get_user (ks + length, us++)) 
         {
           palloc_free_page (ks);
           thread_exit (); 
@@ -214,7 +221,18 @@ sys_wait (tid_t child)
 static int
 sys_create (const char *ufile, unsigned initial_size) 
 {
-	return filesys_create( ufile, initial_size );
+  int ret_value;
+
+  char *kfile = copy_in_string (ufile);
+
+  /* If file is NULL then return error */
+  if( kfile == NULL ) thread_exit ();
+  
+  ret_value = filesys_create( kfile, initial_size);
+
+  palloc_free_page (kfile);
+
+  return ret_value;
 }
  
 /* Remove system call. */
@@ -237,9 +255,15 @@ static int
 sys_open (const char *ufile) 
 {
   char *kfile = copy_in_string (ufile);
+
+  /* If file is NULL then return error */
+  if(kfile == NULL) return -1;
+
   struct file_descriptor *fd;
   int handle = -1;
- 
+
+
+
   fd = malloc (sizeof *fd);
   if (fd != NULL)
     {
