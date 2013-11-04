@@ -412,6 +412,27 @@ static int
 sys_close (int handle) 
 {
 /* Add code */
+	struct file_descriptor *fd;
+  fd = lookup_fd (handle);
+
+	//struct file_descriptor *fd, *temp;
+	struct thread *cur = thread_current ();
+  struct list_elem *e;
+
+  for (e = list_begin (&cur->fds); e != list_end (&cur->fds); e = list_next(e))
+  {
+    fd = (struct file_descriptor*) list_entry( e, struct file_descriptor, elem);
+    if( handle == fd->handle )
+    {
+      list_remove (e);
+    }
+    if( e != NULL && e->prev != NULL && e->next == NULL ) break;
+  }
+	
+	lock_acquire (&fs_lock);
+	file_close (fd->file);
+	lock_release (&fs_lock);
+	return;
   //thread_exit ();
 }
  
@@ -420,5 +441,14 @@ void
 syscall_exit (void) 
 {
 /* Add code */
-  return;
+	/*struct file_descriptor *fd, *temp;
+	struct thread *cur = thread_current ();
+  struct list_elem *e;
+
+  for (e = list_begin (&cur->fds); e != list_end (&cur->fds); e = list_next(e))
+  {
+    fd = (struct file_descriptor*) list_entry( e, struct file_descriptor, elem);
+    sys_close( fd->handle );
+    if( e != NULL && e->prev != NULL && e->next == NULL ) break;
+  }*/
 }
