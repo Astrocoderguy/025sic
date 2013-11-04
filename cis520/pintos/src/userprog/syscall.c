@@ -287,9 +287,9 @@ sys_open (const char *ufile)
 static struct file_descriptor *
 lookup_fd (int handle)
 {
-/* Add code to lookup file descriptor in the current thread's fds */
-	struct file_descriptor *fd, *temp;
-	struct thread *cur = thread_current ();
+/* Add code to lookup file descriptor in the current thread's fds */   
+  struct file_descriptor *fd, *temp;
+  struct thread *cur = thread_current ();
   struct list_elem *e;
 
   for (e = list_begin (&cur->fds); e != list_end (&cur->fds); e = list_next(e))
@@ -318,6 +318,8 @@ sys_filesize (int handle)
 static int
 sys_read (int handle, void *udst_, unsigned size) 
 {
+  int ret_value;
+
   struct file_descriptor *fd;
   const uint8_t *udst = udst_;
 
@@ -325,7 +327,12 @@ sys_read (int handle, void *udst_, unsigned size)
   if( udst == NULL || !verify_user(udst) ) thread_exit();
   
   fd = lookup_fd (handle);
-  return file_read (fd->file, udst, size);
+  
+  lock_acquire (&fs_lock);
+  ret_value = file_read (fd->file, udst, size);
+  lock_release (&fs_lock);
+
+  return ret_value;
 }
  
 /* Write system call. */
@@ -386,16 +393,21 @@ sys_write (int handle, void *usrc_, unsigned size)
 static int
 sys_seek (int handle, unsigned position) 
 {
-/* Add code */
-  //thread_exit ();
+
+  struct file_descriptor *fd = lookup_fd (handle); 
+  struct file *f = fd->file;
+  
+  file_seek (f, position);
 }
  
 /* Tell system call. */
 static int
 sys_tell (int handle) 
 {
-/* Add code */
-  //thread_exit ();
+  struct file_descriptor *fd = lookup_fd (handle); 
+  struct file *f = fd->file;
+  
+  file_tell (f);
 }
  
 /* Close system call. */
