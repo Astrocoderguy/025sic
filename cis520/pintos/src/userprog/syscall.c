@@ -86,7 +86,7 @@ syscall_handler (struct intr_frame *f UNUSED)
   /* Get the system call arguments */
   ASSERT( sc->arg_cnt <= sizeof( args) / sizeof( *args ) );
   memset( args, 0, sizeof( args ));
-  copy_in( args, (uint32_t *) f->esp + 1, sizeof( *args ) * sc->arg_cnt  );
+  copy_in( args, (uint32_t *) f->esp + 1, sizeof( *args ) * sc->arg_cnt );
 
   /* Execute system call and set return value */
   f->eax = sc->func( args[0], args[1], args[2] );
@@ -135,12 +135,8 @@ copy_in (void *dst_, const void *usrc_, size_t size)
   uint8_t *dst = dst_;
   const uint8_t *usrc = usrc_;
 
-  /* Check if usrc is not null */
-  //if( usrc == NULL ) thread_exit();
-
-  /* Check that usrc is not pointing to unmapped virtural memory */
-  //TODO
-
+  /* Check that pointer is not null or unmapped virtual memory addr */
+  if( usrc == NULL || !verify_user(usrc) ) thread_exit();
  
   for (; size > 0; size--, dst++, usrc++) 
     if (!is_user_vaddr(usrc) || !get_user (dst, usrc)) 
@@ -204,7 +200,7 @@ sys_exec (const char *ufile)
 
   char *kfile = copy_in_string (ufile);
 
-  /* If file is NULL then return error */
+  /* If file is NULL then exit */
   if( kfile == NULL ) thread_exit ();
   
   ret_value = process_execute( kfile );
@@ -229,7 +225,7 @@ sys_create (const char *ufile, unsigned initial_size)
 
   char *kfile = copy_in_string (ufile);
 
-  /* If file is NULL then return error */
+  /* If file is NULL then exit */
   if( kfile == NULL ) thread_exit ();
   
   ret_value = filesys_create( kfile, initial_size);
@@ -322,20 +318,14 @@ sys_filesize (int handle)
 static int
 sys_read (int handle, void *udst_, unsigned size) 
 {
-  int ret_value;
-
-  char *kfile = copy_in_string (udst_);
-
-  /* If file is NULL then return error */
-  if( kfile == NULL ) thread_exit ();
-  
   struct file_descriptor *fd;
+  const uint8_t *udst = udst_;
+
+  /* Check that pointer is not null or unmapped virtual memory addr */
+  if( udst == NULL || !verify_user(udst) ) thread_exit();
+  
   fd = lookup_fd (handle);
-  ret_value = file_read (fd->file, kfile, size);
-
-  palloc_free_page (kfile);
-
-  return ret_value;
+  return file_read (fd->file, udst, size);
 }
  
 /* Write system call. */

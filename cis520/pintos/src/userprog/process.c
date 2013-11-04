@@ -152,7 +152,6 @@ process_wait (tid_t child_tid)
   struct wait_status *child, *temp;  
   child = NULL;
   children = thread_current()->children;
-  
 
   for (e = list_begin (&children); e != list_end (&children); e = list_next(e))
   {
@@ -169,6 +168,7 @@ process_wait (tid_t child_tid)
 		child->parentWaited = true;
     return child->exit_code;
   }
+
   return -1;
 }
 
