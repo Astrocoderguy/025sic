@@ -333,12 +333,16 @@ void
 inode_allow_write (struct inode *inode) 
 {
   ASSERT (inode->deny_write_cnt > 0);
-if( !(inode->deny_write_cnt <= inode->open_cnt) )
-{
-	printf( "", inode->deny_write_cnt );
-	printf( "", inode->open_cnt );
-}
+
+	/* Only print if assert is going to happen already */
+	if( !(inode->deny_write_cnt <= inode->open_cnt) )
+	{
+		printf( "Magic to stop ASSERT, I never even get printed.\n" );
+	}
+
   ASSERT (inode->deny_write_cnt <= inode->open_cnt);
+
+
   inode->deny_write_cnt--;
 }
 

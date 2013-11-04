@@ -79,7 +79,6 @@ start_process (void *exec_)
   struct intr_frame if_;
   bool success;
 
-	//printf( "start_process, %s\n", exec->file_name );
   /* Initialize interrupt frame and load executable. */
   memset (&if_, 0, sizeof if_);
   if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;
@@ -188,8 +187,7 @@ process_exit (void)
     {
       struct wait_status *cs = cur->wait_status;
 
-      /* add code */
-      printf ("%s: exit(%i)\n", cur->name, cur->wait_status->exit_code); // HACK all successful ;-)
+      printf ("%s: exit(%i)\n", cur->name, cur->wait_status->exit_code);
       sema_up( &(thread_current()->wait_status->dead) );
       release_child (cs);
     }
@@ -329,7 +327,6 @@ load (const char *cmd_line, void (**eip) (void), void **esp)
   process_activate ();
 
   /* Extract file_name from command line. */
-	//printf( "load, %s\n", cmd_line );
   while (*cmd_line == ' ')
     cmd_line++;
   strlcpy (file_name, cmd_line, sizeof file_name);
@@ -343,6 +340,7 @@ load (const char *cmd_line, void (**eip) (void), void **esp)
       printf ("load: %s: open failed\n", file_name);
       goto done; 
     }
+
   file_deny_write (file);
 
   /* Read and verify executable header. */
@@ -548,12 +546,12 @@ reverse (int argc, char **argv)
    int i;
 
    for( i = 0; i < temp; i++ )
-     {
+   {
      //Swap pointers
      ptr = argv[i];
      argv[i] = argv[argc - i - 1];
      argv[argc - i - 1] = ptr; 
-     }
+   }
    return;
 }
 
@@ -590,42 +588,6 @@ init_cmd_line (uint8_t *kpage, uint8_t *upage, const char *cmd_line,
   char *karg, *saveptr;
   int argc;
   char **argv;
-  int i;
-
-/* Argument Passing */
-/*(
-  char *save_ptr;
-  int i = 0;
-  int count = 0;
-  int tok_len = 0;
-  int arg_len = 0;
-  char *args_cpy;
-  char *token;
-  char **args;
-
-  arg_len = strnlen(exec->file_name, PGSIZE);
-  args_cpy = (char*)malloc( arg_len );
-  strlcpy( args_cpy, exec->file_name, PGSIZE );
-  args = (char**)malloc( 10*(sizeof (char*)) );
-
-  for (token = strtok_r (args_cpy, " ", &save_ptr); token != NULL; token = strtok_r (NULL, " ", &save_ptr), i++)
-    {
-    tok_len = strnlen(token, PGSIZE);
-    args[i] = (char*)malloc( tok_len );
-    strlcpy( args[i], token, PGSIZE);
-    //printf("%s\n", args[i]);
-    }
-
-  reverse( i, args );  
-  /*for( count = 0; count < i; count++ )
-  {
-  //printf("%s\n", args[count]);
-  //asm volatile                                                   
-  //("pushl %[arg];" : : [arg] "g" (args[count]) : "memory");  
-  }*/
-
-
-  /* End of Argument Passing */
 
   /* Push a temporary working copy of the command line string. */
   cmd_line_copy = push (kpage, &ofs, cmd_line, strlen (cmd_line) + 1);
@@ -651,11 +613,10 @@ init_cmd_line (uint8_t *kpage, uint8_t *upage, const char *cmd_line,
   argv = (char **) (upage + ofs);
   reverse (argc, (char **) (kpage + ofs));
 
-
-  if ( push (kpage, &ofs, &argv, sizeof argv) == NULL ||
-       push (kpage, &ofs, &argc, sizeof argc) == NULL
-      || push (kpage, &ofs, &null, sizeof null) == NULL)
-    return false;
+	if ( push (kpage, &ofs, &argv, sizeof argv) == NULL 
+		|| push (kpage, &ofs, &argc, sizeof argc) == NULL
+  	|| push (kpage, &ofs, &null, sizeof null) == NULL)
+   			 return false;
 
   /* Set initial stack pointer. */
   *esp = upage + ofs;

@@ -198,9 +198,13 @@ sys_exec (const char *ufile)
 
   char *kfile = copy_in_string (ufile);
   
-  ret_value = process_execute( kfile );
 
+	lock_acquire (&fs_lock);
+
+  ret_value = process_execute( kfile );
   palloc_free_page (kfile);
+
+	lock_release (&fs_lock);
 
   return ret_value;
 }
@@ -222,9 +226,9 @@ sys_create (const char *ufile, unsigned initial_size)
   
 	lock_acquire (&fs_lock);
   ret_value = filesys_create( kfile, initial_size);
-	lock_release (&fs_lock);
-
   palloc_free_page (kfile);
+
+	lock_release (&fs_lock);
 
   return ret_value;
 }
@@ -237,9 +241,12 @@ sys_remove (const char *ufile)
 
   char *kfile = copy_in_string (ufile);
   
-  ret_value = filesys_remove (kfile); 
+	lock_acquire (&fs_lock);
 
+  ret_value = filesys_remove (kfile); 
   palloc_free_page (kfile);
+  
+	lock_release (&fs_lock);
 
   return ret_value;
 }
@@ -417,8 +424,9 @@ sys_close (int handle)
 {
 	struct file_descriptor *fd;
   fd = lookup_fd (handle);
+struct file *f;
+struct inode *i;
 
-	//struct file_descriptor *fd, *temp;
 	struct thread *cur = thread_current ();
   struct list_elem *e;
 
@@ -435,8 +443,7 @@ sys_close (int handle)
 	lock_acquire (&fs_lock);
 	file_close (fd->file);
 	lock_release (&fs_lock);
-	return;
-  //thread_exit ();
+	return 0;
 }
  
 /* On thread exit, close all open files. */
@@ -447,11 +454,10 @@ syscall_exit (void)
 	struct thread *cur = thread_current ();
   struct list_elem *e;
 
-  for (e = list_begin (&cur->fds); e != list_end (&cur->fds); )
+	while( !list_empty( &cur->fds ) )
   {
+		e = list_begin( &cur->fds );
     fd = (struct file_descriptor*) list_entry( e, struct file_descriptor, elem);
-    if( e != NULL && e->prev != NULL && e->next == NULL ) break;
-		e = list_next(e);
     sys_close( fd->handle );
   }
 }
