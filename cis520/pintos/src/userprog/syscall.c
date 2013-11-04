@@ -14,8 +14,6 @@
 #include "threads/thread.h"
 #include "threads/vaddr.h"
  
-
- 
 static int sys_halt (void);
 static int sys_exit (int status);
 static int sys_exec (const char *ufile);
@@ -221,7 +219,7 @@ sys_create (const char *ufile, unsigned initial_size)
   int ret_value;
 
   char *kfile = copy_in_string (ufile);
-  
+
   ret_value = filesys_create( kfile, initial_size);
 
   palloc_free_page (kfile);
@@ -288,7 +286,7 @@ static struct file_descriptor *
 lookup_fd (int handle)
 {
 /* Add code to lookup file descriptor in the current thread's fds */   
-  struct file_descriptor *fd, *temp;
+  struct file_descriptor *fd;
   struct thread *cur = thread_current ();
   struct list_elem *e;
 
@@ -321,15 +319,14 @@ sys_read (int handle, void *udst_, unsigned size)
   int ret_value;
 
   struct file_descriptor *fd;
-  const uint8_t *udst = udst_;
 
   /* Check that pointer is not null or unmapped virtual memory addr */
-  if( udst == NULL || !verify_user(udst) ) thread_exit();
+  if( udst_ == NULL || !verify_user(udst_) ) thread_exit();
   
   fd = lookup_fd (handle);
   
   lock_acquire (&fs_lock);
-  ret_value = file_read (fd->file, udst, size);
+  ret_value = file_read (fd->file, udst_, size);
   lock_release (&fs_lock);
 
   return ret_value;
@@ -397,6 +394,7 @@ sys_seek (int handle, unsigned position)
   struct file *f = fd->file;
   
   file_seek (f, position);
+  return 1;
 }
  
 /* Tell system call. */
@@ -406,7 +404,7 @@ sys_tell (int handle)
   struct file_descriptor *fd = lookup_fd (handle); 
   struct file *f = fd->file;
   
-  file_tell (f);
+  return file_tell (f);
 }
  
 /* Close system call. */
