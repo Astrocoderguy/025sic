@@ -219,8 +219,10 @@ sys_create (const char *ufile, unsigned initial_size)
   int ret_value;
 
   char *kfile = copy_in_string (ufile);
-
+  
+	lock_acquire (&fs_lock);
   ret_value = filesys_create( kfile, initial_size);
+	lock_release (&fs_lock);
 
   palloc_free_page (kfile);
 
@@ -393,8 +395,10 @@ sys_seek (int handle, unsigned position)
   struct file_descriptor *fd = lookup_fd (handle); 
   struct file *f = fd->file;
   
+	lock_acquire (&fs_lock);
   file_seek (f, position);
-  return 1;
+	lock_release (&fs_lock);
+	return 1;
 }
  
 /* Tell system call. */
@@ -411,7 +415,6 @@ sys_tell (int handle)
 static int
 sys_close (int handle) 
 {
-/* Add code */
 	struct file_descriptor *fd;
   fd = lookup_fd (handle);
 
@@ -440,15 +443,15 @@ sys_close (int handle)
 void
 syscall_exit (void) 
 {
-/* Add code */
-	/*struct file_descriptor *fd, *temp;
+	struct file_descriptor *fd, *temp;
 	struct thread *cur = thread_current ();
   struct list_elem *e;
 
-  for (e = list_begin (&cur->fds); e != list_end (&cur->fds); e = list_next(e))
+  for (e = list_begin (&cur->fds); e != list_end (&cur->fds); )
   {
     fd = (struct file_descriptor*) list_entry( e, struct file_descriptor, elem);
-    sys_close( fd->handle );
     if( e != NULL && e->prev != NULL && e->next == NULL ) break;
-  }*/
+		e = list_next(e);
+    sys_close( fd->handle );
+  }
 }
