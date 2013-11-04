@@ -157,7 +157,7 @@ copy_in_string (const char *us)
   size_t length;
 
   /* Check that pointer is not null or unmapped virtual memory addr */
-  if( us == NULL || !verify_user(us) ) return NULL;
+  if( us == NULL || !verify_user(us) ) thread_exit();
  
   ks = palloc_get_page (0);
   if ( ks == NULL ) thread_exit ();
@@ -199,9 +199,6 @@ sys_exec (const char *ufile)
   int ret_value;
 
   char *kfile = copy_in_string (ufile);
-
-  /* If file is NULL then exit */
-  if( kfile == NULL ) thread_exit ();
   
   ret_value = process_execute( kfile );
 
@@ -224,9 +221,6 @@ sys_create (const char *ufile, unsigned initial_size)
   int ret_value;
 
   char *kfile = copy_in_string (ufile);
-
-  /* If file is NULL then exit */
-  if( kfile == NULL ) thread_exit ();
   
   ret_value = filesys_create( kfile, initial_size);
 
@@ -239,7 +233,15 @@ sys_create (const char *ufile, unsigned initial_size)
 static int
 sys_remove (const char *ufile) 
 {
-/* Add code */
+  int ret_value;
+
+  char *kfile = copy_in_string (ufile);
+  
+  ret_value = filesys_remove (kfile); 
+
+  palloc_free_page (kfile);
+
+  return ret_value;
 }
  
 /* A file descriptor, for binding a file handle to a file. */
@@ -258,8 +260,6 @@ sys_open (const char *ufile)
 
   struct file_descriptor *fd;
   int handle = -1;
-
- if( kfile == NULL ) thread_exit ();
 
   fd = malloc (sizeof *fd);
   if (fd != NULL)
@@ -393,7 +393,6 @@ sys_write (int handle, void *usrc_, unsigned size)
 static int
 sys_seek (int handle, unsigned position) 
 {
-
   struct file_descriptor *fd = lookup_fd (handle); 
   struct file *f = fd->file;
   
